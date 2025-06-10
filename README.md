@@ -63,7 +63,7 @@ You will need to replace **two** existing files and create **one** new file.
 With the files in place, start SillyTavern and configure the extension.
 
 1.  Start SillyTavern using `start.bat` or `start.sh`.
-2.  Go to the **Extensions panel** (the plug icon) -> **TTS** tab.
+2.  Go to the **Extensions panel** (the three blocks icon) -> **TTS** tab.
 3.  From the **Select TTS Provider** dropdown, choose **Google TTS**.
 4.  Click the **Reload** button next to the dropdown.
 5.  Check the box for **"Use Native Gemini TTS (requires API key)"**.
