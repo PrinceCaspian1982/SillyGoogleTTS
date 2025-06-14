@@ -23,7 +23,6 @@
 | Requirement                          | Why it's needed                                   |
 | ------------------------------------ | ------------------------------------------------- |
 | **SillyTavern**                      | The required runtime environment                  |
-| **[FFmpeg](https://ffmpeg.org/download.html)** (Recommended) | While this extension no longer uses FFmpeg for native TTS, other SillyTavern features or TTS providers may still need it. It's best to have it installed and in your PATH. |
 | **Google AI or Vertex AI API Key**   | Required to access the native Gemini TTS feature  |
 
 ---
@@ -49,11 +48,7 @@ To ensure compatibility and prevent startup errors, we will first ensure the bas
     ```bash
     npm install google-auth-library
     ```
-    Finally, install the library needed for some TTS providers (though no longer for this one's native mode):
-    ```bash
-    npm install fluent-ffmpeg
-    ```
-
+    
 ### Step 2: Add and Replace the Necessary Files
 
 You will need to replace **two** existing files and create **one** new file. **Crucially, the backend `google.js` file must be fully replaced with the one from this extension to ensure compatibility.**
