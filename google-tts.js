@@ -198,8 +198,8 @@ class GoogleTtsProvider {
             }
             
             if (!response.ok) {
-                toastr.error(response.statusText, 'TTS Preview Failed');
-                throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                // Error is handled inside the fetch function, but we still need to stop here
+                return;
             }
     
             const audioBlob = await response.blob();
@@ -230,8 +230,16 @@ class GoogleTtsProvider {
         });
 
         if (!response.ok) {
-            toastr.error(response.statusText, 'Native TTS Generation Failed');
-            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            try {
+                const errorJson = await response.json();
+                if (errorJson.error) {
+                    errorMessage = errorJson.error;
+                }
+            } catch {
+                // Not a JSON response, do nothing and keep the original http error
+            }
+            throw new Error(errorMessage);
         }
         return response;
     }
@@ -255,4 +263,3 @@ class GoogleTtsProvider {
         return response;
     }
 }
-// --- END OF FILE public/scripts/extensions/tts/google-tts.js ---

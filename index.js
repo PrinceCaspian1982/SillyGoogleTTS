@@ -42,6 +42,7 @@ let lastMessageHash = null;
 let periodicMessageGenerationTimer = null;
 let lastPositionOfParagraphEnd = -1;
 let currentInitVoiceMapPromise = null;
+let ttsGenerationTimer = null; // Holds the setInterval for the elapsed time indicator
 
 const DEFAULT_VOICE_MARKER = '[Default Voice]';
 const DISABLED_VOICE_MARKER = 'disabled';
@@ -116,14 +117,65 @@ const ttsProviders = {
 let ttsProvider;
 let ttsProviderName;
 
-function addTtsControlsToMessage(messageId) {
+function getMessageButtonsContainer(messageId) {
     const messageElement = $(`.mes[mesid="${messageId}"]`);
-    if (!messageElement.length) return;
+    if (!messageElement.length) return null;
+    return messageElement.find('.mes_buttons');
+}
 
-    const buttonContainer = messageElement.find('.mes_buttons');
-    if (!buttonContainer.length) return;
+function removeTtsIndicators(messageId) {
+    if (ttsGenerationTimer) {
+        clearInterval(ttsGenerationTimer);
+        ttsGenerationTimer = null;
+    }
+    const buttonContainer = getMessageButtonsContainer(messageId);
+    if (buttonContainer) {
+        buttonContainer.find('.tts-timer-indicator, .tts-error-indicator').remove();
+    }
+}
+
+function addTtsTimer(messageId) {
+    const buttonContainer = getMessageButtonsContainer(messageId);
+    if (!buttonContainer) return;
+
+    removeTtsIndicators(messageId);
+
+    const timerElement = $(`
+        <div class="tts-timer-indicator">
+            <i class="fa-solid fa-hourglass-half fa-spin"></i>
+            <span>Generating... 0s</span>
+        </div>
+    `);
+    buttonContainer.append(timerElement);
+
+    let seconds = 0;
+    ttsGenerationTimer = setInterval(() => {
+        seconds++;
+        timerElement.find('span').text(`Generating... ${seconds}s`);
+    }, 1000);
+}
+
+function addTtsErrorIcon(messageId, errorMessage) {
+    const buttonContainer = getMessageButtonsContainer(messageId);
+    if (!buttonContainer) return;
+
+    removeTtsIndicators(messageId);
+
+    const errorElement = $(`
+        <div class="tts-error-indicator" title="${errorMessage}">
+            <i class="fa-solid fa-circle-xmark" style="color: red;"></i>
+        </div>
+    `);
+    buttonContainer.append(errorElement);
+}
+
+function addTtsControlsToMessage(messageId) {
+    const buttonContainer = getMessageButtonsContainer(messageId);
+    if (!buttonContainer) return;
 
     if (buttonContainer.find('.mes_replay_tts').length > 0) return;
+
+    removeTtsIndicators(messageId);
 
     const replayButton = `
         <div class="mes_replay_tts" title="Replay TTS">
@@ -230,6 +282,7 @@ async function moduleWorker() {
 
 function resetTtsPlayback() {
     cancelTtsPlay();
+    removeTtsIndicators(currentTtsJob?.id);
     currentTtsJob = null;
     currentAudioJob = null;
     audioElement.currentTime = 0;
@@ -466,6 +519,7 @@ let currentTtsJob;
 
 function completeTtsJob() {
     console.info(`Current TTS job for ${currentTtsJob?.name} completed.`);
+    removeTtsIndicators(currentTtsJob.id);
     currentTtsJob = null;
 }
 
@@ -498,6 +552,12 @@ async function processTtsQueue() {
     try {
         console.debug('New message found, running TTS');
         currentTtsJob = ttsJobQueue.shift();
+
+        // Add timer UI
+        if (currentTtsJob.id != null) {
+            addTtsTimer(currentTtsJob.id);
+        }
+
         let text = extension_settings.tts.narrate_translated_only ? (currentTtsJob?.extra?.display_text || currentTtsJob.mes) : currentTtsJob.mes;
 
         text = substituteParams(text);
@@ -563,8 +623,12 @@ async function processTtsQueue() {
         await tts(text, voiceId, char, messageId);
 
     } catch (error) {
-        toastr.error(error.toString());
         console.error(error);
+        if (currentTtsJob && currentTtsJob.id != null) {
+            addTtsErrorIcon(currentTtsJob.id, error.message);
+        } else {
+            toastr.error(error.message, "TTS Generation Failed");
+        }
         errorAudio.play();
         currentTtsJob = null;
     }
@@ -963,6 +1027,18 @@ async function initVoiceMapInternal(unrestricted) {
 }
 
 jQuery(async function () {
+    const ttsIndicatorStyles = `
+        <style>
+            .tts-timer-indicator, .tts-error-indicator {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                opacity: 0.7;
+            }
+        </style>
+    `;
+    $('body').append(ttsIndicatorStyles);
+
     async function addExtensionControls() {
         const settingsHtml = $(await renderExtensionTemplateAsync('tts', 'settings'));
         $('#tts_container').append(settingsHtml);
@@ -1026,4 +1102,3 @@ jQuery(async function () {
     document.body.appendChild(audioElement);
     document.body.appendChild(errorAudio);
 });
-// --- END OF FILE public/scripts/extensions/tts/index.js ---
