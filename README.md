@@ -1,6 +1,6 @@
 # SillyGoogleTTS
 
-**SillyGoogleTTS** is a plug-and-play Text-to-Speech extension for [SillyTavern](https://github.com/SillyTavern/SillyTavern). It enables native Google Gemini TTS by using `fluent-ffmpeg` to convert raw audio into a high-quality MP3 on the fly, making it compatible with all browsers.
+**SillyGoogleTTS** is a plug-and-play Text-to-Speech extension for [SillyTavern](https://github.com/SillyTavern/SillyTavern). It enables native Google Gemini TTS by efficiently wrapping raw audio into a browser-compatible WAV file on the fly, making it faster and reducing server load.
 
 ---
 
@@ -8,11 +8,13 @@
 
 | Feature                  | Google Translate | Gemini 2.x Native   |
 | ------------------------ | ---------------- | ------------------- |
-| On-the-fly MP3 Conversion| n/a              | ✅                  |
+| On-the-fly WAV Creation  | n/a              | ✅                  |
 | 30+ Pre-tuned EN Voices  | ❌               | ✅                  |
 | API Key Required         | ❌               | ✅                  |
 | Works Offline            | ❌               | ❌                  |
 | Voice-map Friendly       | ✅               | ✅                  |
+| Fast & Low-Resource      | ❌               | ✅                  |
+
 
 ---
 
@@ -21,7 +23,7 @@
 | Requirement                          | Why it's needed                                   |
 | ------------------------------------ | ------------------------------------------------- |
 | **SillyTavern**                      | The required runtime environment                  |
-| **[FFmpeg](https://ffmpeg.org/download.html)** | The core audio conversion tool. Must be installed and added to your system's PATH. |
+| **[FFmpeg](https://ffmpeg.org/download.html)** (Recommended) | While this extension no longer uses FFmpeg for native TTS, other SillyTavern features or TTS providers may still need it. It's best to have it installed and in your PATH. |
 | **Google AI or Vertex AI API Key**   | Required to access the native Gemini TTS feature  |
 
 ---
@@ -47,7 +49,7 @@ To ensure compatibility and prevent startup errors, we will first ensure the bas
     ```bash
     npm install google-auth-library
     ```
-    Finally, install the library needed for on-the-fly audio conversion:
+    Finally, install the library needed for some TTS providers (though no longer for this one's native mode):
     ```bash
     npm install fluent-ffmpeg
     ```
@@ -87,7 +89,7 @@ With the files in place, start SillyTavern and configure the extension.
 
 -   **Server fails to start with an `ERR_MODULE_NOT_FOUND` error:** This means a dependency was not installed correctly. Stop SillyTavern and carefully re-run all three commands from **Installation Guide - Step 1**.
 
--   **TTS generation fails with an `ffmpeg` error (e.g., `spawn ffmpeg ENOENT`):** This means the `fluent-ffmpeg` library can't find the FFmpeg program. Ensure you have [installed FFmpeg](https://ffmpeg.org/download.html) and that its location is included in your system's PATH environment variable.
+-   **TTS generation fails:** Check the SillyTavern server console for errors. It will often give a clear message.
 
 -   **"No API key found" error:** Ensure you have correctly pasted your API key in the **API Connections** panel for Google AI Studio or Vertex AI.
 

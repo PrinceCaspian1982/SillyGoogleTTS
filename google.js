@@ -1,10 +1,8 @@
-// --- START OF CORRECTED FILE src/endpoints/google.js ---
+// --- START OF FILE src/endpoints/google.js ---
 import { Buffer } from 'node:buffer';
 import fetch from 'node-fetch';
 import express from 'express';
 import { speak, languages } from 'google-translate-api-x';
-import { Readable } from 'stream';
-import ffmpeg from 'fluent-ffmpeg';
 import { GoogleAuth } from 'google-auth-library';
 
 import { readSecret, SECRET_KEYS } from './secrets.js';
@@ -14,7 +12,6 @@ const API_MAKERSUITE = 'https://generativelanguage.googleapis.com';
 const API_VERTEX_AI = 'https://us-central1-aiplatform.googleapis.com';
 
 // ### START: Functions required by SillyTavern Staging ###
-// These functions were missing from your version, causing the crash.
 export function getProjectIdFromServiceAccount(serviceAccount) {
     try {
         const key = JSON.parse(serviceAccount);
@@ -33,7 +30,7 @@ export function getVertexAIAuth() {
 // ### END: Functions required by SillyTavern Staging ###
 
 
-// ### START: Helper functions from your TTS extension ###
+// ### START: Helper functions for WAV creation ###
 function createWavHeader(dataSize, sampleRate, numChannels = 1, bitsPerSample = 16) {
     const header = Buffer.alloc(44);
     header.write('RIFF', 0);
@@ -56,7 +53,7 @@ function createCompleteWavFile(pcmData, sampleRate) {
     const header = createWavHeader(pcmData.length, sampleRate);
     return Buffer.concat([header, pcmData]);
 }
-// ### END: Helper functions from your TTS extension ###
+// ### END: Helper functions for WAV creation ###
 
 
 export const router = express.Router();
@@ -128,7 +125,6 @@ router.post('/caption-image', async (request, response) => {
     }
 });
 
-// ### START: TTS endpoints from your extension ###
 router.post('/list-voices', (_, response) => {
     return response.json(languages);
 });
@@ -182,17 +178,17 @@ router.post('/generate-native-tts', async (request, response) => {
         const requestBody = {
             contents: [{
                 role: 'user',
-                parts: [{ text: text }]
+                parts: [{ text: text }],
             }],
             generationConfig: {
                 responseModalities: ['AUDIO'],
                 speechConfig: {
                     voiceConfig: {
                         prebuiltVoiceConfig: {
-                            voiceName: voice
-                        }
-                    }
-                }
+                            voiceName: voice,
+                        },
+                    },
+                },
             },
             safetySettings: GEMINI_SAFETY,
         };
@@ -221,44 +217,21 @@ router.post('/generate-native-tts', async (request, response) => {
 
         const audioBuffer = Buffer.from(audioData, 'base64');
 
+        // NEW LOGIC: If the audio is raw PCM, wrap it in a WAV header and send it.
         if (mimeType && mimeType.toLowerCase().includes('audio/l16')) {
             const rateMatch = mimeType.match(/rate=(\d+)/);
             const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
             const pcmData = audioBuffer;
+            
+            // Create a complete, playable WAV file buffer.
             const wavBuffer = createCompleteWavFile(pcmData, sampleRate);
-
-            return new Promise((resolve, reject) => {
-                const chunks = [];
-                const inputStream = Readable.from(wavBuffer);
-
-                ffmpeg(inputStream)
-                    .inputFormat('wav')
-                    .audioCodec('libmp3lame')
-                    .audioBitrate('128k')
-                    .audioFrequency(sampleRate)
-                    .audioChannels(1)
-                    .format('mp3')
-                    .on('error', (err) => {
-                        console.error('FFmpeg conversion error:', err.message);
-                        if (!response.headersSent) {
-                            response.setHeader('Content-Type', 'audio/wav');
-                            response.send(wavBuffer);
-                        }
-                        reject(err);
-                    })
-                    .pipe()
-                    .on('data', (chunk) => chunks.push(chunk))
-                    .on('end', () => {
-                        if (!response.headersSent) {
-                            const mp3Buffer = Buffer.concat(chunks);
-                            response.setHeader('Content-Type', 'audio/mpeg');
-                            response.send(mp3Buffer);
-                        }
-                        resolve();
-                    });
-            });
+            
+            // Send the WAV file directly to the browser. This is much faster.
+            response.setHeader('Content-Type', 'audio/wav');
+            return response.send(wavBuffer);
         }
         
+        // Fallback for any other audio format Google might send in the future.
         response.setHeader('Content-Type', mimeType || 'application/octet-stream');
         response.send(audioBuffer);
 
@@ -269,4 +242,3 @@ router.post('/generate-native-tts', async (request, response) => {
         }
     }
 });
-// ### END: TTS endpoints from your extension ###

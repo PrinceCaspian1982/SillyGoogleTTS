@@ -212,10 +212,20 @@ function onTtsDownloadClick() {
     const audioBlob = narratedMessageAudio[messageId];
 
     if (audioBlob) {
+        // NEW: Dynamically determine the file extension based on the audio type.
+        const mimeTypeToExtension = {
+            'audio/mpeg': 'mp3',
+            'audio/wav': 'wav',
+            'audio/ogg': 'ogg',
+            'audio/opus': 'opus',
+            'audio/webm': 'webm',
+        };
+        const extension = mimeTypeToExtension[audioBlob.type] || 'audio';
+
         const url = URL.createObjectURL(audioBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `SillyTavern_TTS_${messageId}.mp3`;
+        a.download = `SillyTavern_TTS_${messageId}.${extension}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
